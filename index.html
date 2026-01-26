@@ -3,183 +3,205 @@
 <head>
 <meta charset="UTF-8">
 <meta name="google-site-verification" content="5Z61h5XIdAxuXnCJ7aZi1HMYq6_FTUoHcboNMYDMb4M" />
-<title>Escape Balls - Arcade Deluxe</title>
+<title>Escape Survival Balls – Fast Arcade Survival Game</title>
+<meta name="description" content="Escape Balls is a fast-paced arcade game where one ball escapes from chasing balls. Play online for free. Hard, fun, and addictive.">
+<meta name="keywords" content="escape balls, ball escape game, arcade ball game, survival ball game, free online game">
+<meta name="author" content="Samee Siddiqui">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-html, body { margin:0; padding:0; overflow:hidden; background:#000; font-family:Arial; }
-canvas { display:block; background:#000; }
-#ui { position:absolute; top:10px; left:10px; color:#fff; font-size:18px; }
-#hint { position:absolute; bottom:80px; left:50%; transform:translateX(-50%); color:#fff; font-weight:bold; }
-#restartBtn { position:absolute; bottom:10px; left:50%; transform:translateX(-50%); padding:10px 20px; font-size:18px; background:#FF4500; color:white; border:none; border-radius:5px; cursor:pointer; display:none; }
+html,body{margin:0;padding:0;overflow:hidden;background:#000;font-family:Arial}
+canvas{display:block}
+#ui{position:absolute;top:10px;left:10px;color:#fff;font-size:18px}
+#hint{position:absolute;bottom:80px;left:50%;transform:translateX(-50%);color:#fff;font-weight:bold}
+#restartBtn{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+padding:10px 20px;font-size:18px;background:#FF4500;color:#fff;border:none;border-radius:5px;display:none}
 </style>
 </head>
 <body>
 
 <canvas id="game"></canvas>
-<div id="ui">Score: <b id="score">0</b> | High: <b id="high">0</b></div>
-<div id="hint">ARROWS = MOVE | SPACE = SHOOT | R = RESTART | Tap/Swipe = MOVE</div>
+
+<div id="ui">
+Score: <b id="score">0</b> |
+High: <b id="high">0</b> |
+Level: <b id="level">1</b>
+</div>
+
+<div id="hint">ARROWS = MOVE | SPACE = SHOOT | R = RESTART</div>
 <button id="restartBtn">Restart</button>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-const restartBtn = document.getElementById("restartBtn");
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const restartBtn=document.getElementById("restartBtn");
 
-function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-window.addEventListener("resize", resize);
-resize();
+function resize(){canvas.width=innerWidth;canvas.height=innerHeight;}
+addEventListener("resize",resize);resize();
 
-let highScore = localStorage.getItem("escapeHigh") || 0;
-document.getElementById("high").innerText = highScore;
+let highScore=localStorage.getItem("escapeHigh")||0;
+document.getElementById("high").innerText=highScore;
 
-let player, enemies, bullets, score, gameOver, spawnTimer, stars, powerUps;
-let left=false, right=false, up=false, down=false, shoot=false;
-let touchX = null, touchY = null;
-let countdown = 3;
-let countdownActive = false;
+let player,enemies,bullets,stars,blueBalls;
+let score=0,gameOver=false,shield=false;
+let left=false,right=false,up=false,down=false,shoot=false;
+let touchX=null,touchY=null;
+let countdown=3;
+let countdownActive=false;
 
+/* LEVEL */
+let level=1;
+let spawnGap=60;
+let glowTime=0; // for shield glow pulse
+
+/* INIT GAME */
 function initGame(){
-    player = {x:canvas.width/2, y:canvas.height/2, radius:25, speed:10, color:"#FF4500", shield:false};
-    enemies = [];
-    bullets = [];
-    score = 0;
-    gameOver = false;
-    spawnTimer = 0;
-    stars = [];
-    powerUps = [];
-    restartBtn.style.display = "none";
-    countdown = 3;
-    countdownActive = true;
+player={x:canvas.width/2,y:canvas.height/2,radius:25,speed:8,color:"#FF4500",shield:false};
+enemies=[]; bullets=[]; blueBalls=[]; stars=[];
+score=0; level=1; spawnGap=60; gameOver=false; shield=false;
+restartBtn.style.display="none";
+document.getElementById("level").innerText=level;
 
-    for(let i=0;i<100;i++){ stars.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, size: Math.random()*2+1, speed: Math.random()*1+0.5}); }
+for(let i=0;i<120;i++)
+stars.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height,size:Math.random()*2+1,speed:Math.random()+0.5});
 
-    countdownLoop();
+countdown=3;
+countdownActive=true;
+countdownLoop();
 }
 
+/* COUNTDOWN */
 function countdownLoop(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle="white";
-  ctx.font="80px Arial";
-  ctx.textAlign="center";
-  ctx.fillText(countdown>0 ? countdown : 'GO!', canvas.width/2, canvas.height/2);
-  if(countdown>0){ countdown--; setTimeout(countdownLoop, 1000); }
-  else{ countdownActive = false; loop(); }
+ctx.clearRect(0,0,canvas.width,canvas.height);
+ctx.fillStyle="white";
+ctx.font="80px Arial";
+ctx.textAlign="center";
+ctx.fillText(countdown>0 ? countdown : "GO!", canvas.width/2, canvas.height/2);
+if(countdown>0){ countdown--; setTimeout(countdownLoop,1000);}
+else{countdownActive=false; loop();}
 }
 
 /* INPUT */
-document.addEventListener("keydown", e=>{
-  if(e.key==="ArrowLeft") left=true;
-  if(e.key==="ArrowRight") right=true;
-  if(e.key==="ArrowUp") up=true;
-  if(e.key==="ArrowDown") down=true;
-  if(e.key===" " || e.key==="Spacebar") shoot=true;
-  if(e.key==="r" || e.key==="R") initGame(); // restart shortcut
+addEventListener("keydown",e=>{
+if(e.key==="ArrowLeft")left=true;
+if(e.key==="ArrowRight")right=true;
+if(e.key==="ArrowUp")up=true;
+if(e.key==="ArrowDown")down=true;
+if(e.key===" "||e.key==="Spacebar")shoot=true;
+if(e.key==="r"||e.key==="R")initGame();
 });
-document.addEventListener("keyup", e=>{
-  if(e.key==="ArrowLeft") left=false;
-  if(e.key==="ArrowRight") right=false;
-  if(e.key==="ArrowUp") up=false;
-  if(e.key==="ArrowDown") down=false;
-  if(e.key===" " || e.key==="Spacebar") shoot=false;
+addEventListener("keyup",e=>{
+if(e.key==="ArrowLeft")left=false;
+if(e.key==="ArrowRight")right=false;
+if(e.key==="ArrowUp")up=false;
+if(e.key==="ArrowDown")down=false;
+if(e.key===" "||e.key==="Spacebar")shoot=false;
 });
 
-// Mobile touch
-document.addEventListener("touchstart", e=>{ touchX=e.touches[0].clientX; touchY=e.touches[0].clientY; });
-document.addEventListener("touchmove", e=>{ touchX=e.touches[0].clientX; touchY=e.touches[0].clientY; });
-document.addEventListener("touchend", e=>{ touchX=null; touchY=null; });
+/* TOUCH */
+addEventListener("touchstart",e=>{ touchX=e.touches[0].clientX; touchY=e.touches[0].clientY; });
+addEventListener("touchmove",e=>{ touchX=e.touches[0].clientX; touchY=e.touches[0].clientY; });
+addEventListener("touchend",()=>{ touchX=null; touchY=null; });
 
+/* ENEMY */
 function spawnEnemy(){
-  let edge = Math.floor(Math.random()*4);
-  let x,y;
-  if(edge===0){ x=0; y=Math.random()*canvas.height; }
-  if(edge===1){ x=canvas.width; y=Math.random()*canvas.height; }
-  if(edge===2){ x=Math.random()*canvas.width; y=0; }
-  if(edge===3){ x=Math.random()*canvas.width; y=canvas.height; }
-  enemies.push({x:x, y:y, radius:20, speed:3 + Math.random()*1.5, color:"#1E90FF"});
+let edge=Math.floor(Math.random()*4),x,y;
+if(edge===0){x=0;y=Math.random()*canvas.height}
+if(edge===1){x=canvas.width;y=Math.random()*canvas.height}
+if(edge===2){x=Math.random()*canvas.width;y=0}
+if(edge===3){x=Math.random()*canvas.width;y=canvas.height}
+
+enemies.push({x,y,radius:18,speed:2+level*0.3,color:"#FF0000"});
 }
 
-function fireBullet(){ bullets.push({x:player.x, y:player.y-player.radius, radius:5, speed:15, color:"#FFFF00"}); }
-
-function spawnPowerUp(){
-  let types = ['shield','speed','rapid'];
-  let type = types[Math.floor(Math.random()*types.length)];
-  powerUps.push({x:Math.random()*canvas.width, y: -20, radius:15, type:type, speed:2, color:type==='shield'?'#00FFFF':type==='speed'?'#00FF00':'#FF00FF'});
+/* SKY-BLUE BALLS (protective) */
+function spawnBlueBall(){
+let x=Math.random()*canvas.width;
+let y=Math.random()*canvas.height;
+blueBalls.push({x,y,radius:18});
 }
 
-function checkCollision(a,b){
-  let dx = a.x-b.x; let dy = a.y-b.y; let dist = Math.sqrt(dx*dx + dy*dy);
-  return dist < a.radius + b.radius;
-}
+/* BULLET */
+function fireBullet(){ bullets.push({x:player.x,y:player.y-player.radius,radius:5,speed:14,color:"#FFFF00"}); }
 
+/* HIT */
+function hit(a,b){return Math.hypot(a.x-b.x,a.y-b.y)<a.radius+b.radius;}
+
+/* MAIN LOOP */
 function loop(){
-  if(gameOver || countdownActive) return;
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+if(gameOver||countdownActive)return;
+ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  ctx.fillStyle="#fff";
-  stars.forEach(s=>{ ctx.beginPath(); ctx.arc(s.x,s.y,s.size,0,Math.PI*2); ctx.fill(); s.y += s.speed; if(s.y>canvas.height) s.y=0; });
+/* STARS */
+ctx.fillStyle="#fff";
+stars.forEach(s=>{ctx.beginPath();ctx.arc(s.x,s.y,s.size,0,Math.PI*2);ctx.fill();s.y+=s.speed;if(s.y>canvas.height)s.y=0;});
 
-  if(left) player.x -= player.speed;
-  if(right) player.x += player.speed;
-  if(up) player.y -= player.speed;
-  if(down) player.y += player.speed;
+/* MOVE PLAYER */
+if(left)player.x-=player.speed;
+if(right)player.x+=player.speed;
+if(up)player.y-=player.speed;
+if(down)player.y+=player.speed;
+if(touchX){player.x+=(touchX-player.x)/10;player.y+=(touchY-player.y)/10;}
 
-  if(touchX!==null && touchY!==null){ if(Math.abs(player.x-touchX)>5) player.x+=(touchX-player.x)/10; if(Math.abs(player.y-touchY)>5) player.y+=(touchY-player.y)/10; }
-
-  if(player.x-player.radius<0) player.x=player.radius;
-  if(player.x+player.radius>canvas.width) player.x=canvas.width-player.radius;
-  if(player.y-player.radius<0) player.y=player.radius;
-  if(player.y+player.radius>canvas.height) player.y=canvas.height-player.radius;
-
-  ctx.fillStyle = player.shield ? '#FFD700' : player.color;
-  ctx.beginPath(); ctx.arc(player.x,player.y,player.radius,0,Math.PI*2); ctx.fill();
-
-  spawnTimer++;
-  if(spawnTimer>50){ spawnEnemy(); spawnTimer=0; }
-  if(Math.random()<0.01) spawnPowerUp();
-
-  enemies.forEach((e,ei)=>{
-    let dx=player.x-e.x; let dy=player.y-e.y; let dist=Math.sqrt(dx*dx+dy*dy);
-    e.x += (dx/dist)*e.speed; e.y += (dy/dist)*e.speed;
-    ctx.fillStyle=e.color; ctx.beginPath(); ctx.arc(e.x,e.y,e.radius,0,Math.PI*2); ctx.fill();
-    if(checkCollision(player,e) && !player.shield) endGame();
-    bullets.forEach((b,bi)=>{ if(checkCollision(b,e)){ enemies.splice(ei,1); bullets.splice(bi,1); createExplosion(e.x,e.y); } });
-  });
-
-  bullets.forEach((b,i)=>{ b.y -= b.speed; ctx.fillStyle=b.color; ctx.beginPath(); ctx.arc(b.x,b.y,b.radius,0,Math.PI*2); ctx.fill(); if(b.y+b.radius<0) bullets.splice(i,1); });
-  if(shoot && score%5===0) fireBullet();
-
-  powerUps.forEach((p,pi)=>{
-    p.y += p.speed;
-    ctx.fillStyle=p.color;
-    ctx.beginPath(); ctx.arc(p.x,p.y,p.radius,0,Math.PI*2); ctx.fill();
-    if(checkCollision(player,p)){
-      if(p.type==='shield'){ player.shield=true; setTimeout(()=>player.shield=false,5000); }
-      if(p.type==='speed'){ player.speed+=5; setTimeout(()=>player.speed-=5,5000); }
-      powerUps.splice(pi,1);
-    }
-    if(p.y-p.radius>canvas.height) powerUps.splice(pi,1);
-  });
-
-  score++; document.getElementById('score').innerText = score;
-  if(score%300===0){ enemies.forEach(e=>e.speed+=0.2); player.speed+=0.1; spawnEnemy(); }
-
-  requestAnimationFrame(loop);
+/* DRAW PLAYER */
+if(shield){
+  glowTime+=0.1;
+  let glowRadius = player.radius + 10 + Math.sin(glowTime)*5;
+  ctx.shadowBlur = 20;
+  ctx.shadowColor = "#00FFFF";
+  ctx.fillStyle="#00FFFF";
+  ctx.beginPath();
+  ctx.arc(player.x,player.y,glowRadius,0,Math.PI*2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}else{
+  ctx.fillStyle=player.color;
+  ctx.beginPath();
+  ctx.arc(player.x,player.y,player.radius,0,Math.PI*2);
+  ctx.fill();
 }
 
-function createExplosion(x,y){ for(let i=0;i<10;i++){ stars.push({x:x, y:y, size:Math.random()*3+2, speed:Math.random()*3, dx:(Math.random()-0.5)*4, dy:(Math.random()-0.5)*4}); } }
+/* SPAWN ENEMIES */
+if(score%spawnGap===0)spawnEnemy();
+if(score%500===0)spawnBlueBall(); // sky-blue protective balls
 
-function endGame(){
-  gameOver=true;
-  if(score>highScore){ localStorage.setItem('escapeHigh',score); document.getElementById('high').innerText=score; }
-  ctx.fillStyle='white'; ctx.font='48px Arial'; ctx.fillText('GAME OVER',canvas.width/2,canvas.height/2);
-  ctx.font='24px Arial'; ctx.fillText('Press R or Restart button to play again',canvas.width/2,canvas.height/2+50);
-  restartBtn.style.display='block';
+/* ENEMIES */
+enemies.forEach((e,ei)=>{
+let dx=player.x-e.x,dy=player.y-e.y,d=Math.hypot(dx,dy);
+e.x+=(dx/d)*e.speed; e.y+=(dy/d)*e.speed;
+
+ctx.fillStyle=e.color;
+ctx.beginPath();ctx.arc(e.x,e.y,e.radius,0,Math.PI*2);ctx.fill();
+
+if(hit(player,e)&&!shield)endGame();
+
+bullets.forEach((b,bi)=>{if(hit(b,e)){enemies.splice(ei,1);bullets.splice(bi,1);}});
+});
+
+/* SKY-BLUE BALLS */
+blueBalls.forEach((bbi,i)=>{
+ctx.fillStyle="#1E90FF";
+ctx.beginPath();ctx.arc(bbi.x,bbi.y,bbi.radius,0,Math.PI*2);ctx.fill();
+if(hit(player,bbi)){shield=true; blueBalls.splice(i,1); setTimeout(()=>shield=false,5000);}
+});
+
+/* BULLETS */
+bullets.forEach((b,i)=>{b.y-=b.speed;ctx.fillStyle=b.color;ctx.beginPath();ctx.arc(b.x,b.y,b.radius,0,Math.PI*2);ctx.fill();if(b.y<0)bullets.splice(i,1);});
+if(shoot && score%8===0)fireBullet();
+
+/* SCORE & LEVEL */
+score++; document.getElementById("score").innerText=score;
+if(score%1000===0){level++; spawnGap=Math.max(20,spawnGap-5); document.getElementById("level").innerText=level;}
+
+requestAnimationFrame(loop);
 }
 
-restartBtn.addEventListener('click',()=>{ initGame(); });
+/* GAME OVER */
+function endGame(){gameOver=true; restartBtn.style.display="block"; if(score>highScore){localStorage.setItem("escapeHigh",score);document.getElementById("high").innerText=score;}}
+
+/* RESTART */
+restartBtn.onclick=initGame;
+
 initGame();
 </script>
-
 </body>
 </html>
-
